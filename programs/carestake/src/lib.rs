@@ -890,6 +890,7 @@ pub struct OracleUpdateHealth<'info> {
 pub struct ProtocolState {
     pub authority: Pubkey,
     pub health_mint: Pubkey,
+    pub treasury: Pubkey,
     pub total_patients: u64,
     pub total_practitioners: u64,
     pub total_pots: u64,

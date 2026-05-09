@@ -1,25 +1,21 @@
 import { useState } from "react";
+import { useWallet } from "@solana/wallet-adapter-react";
+import { useHealthProgram } from "../hooks/useHealthProgram";
 
 const G = {
-  bg: "#0a0f0d",
-  surface: "#0f1f18",
-  card: "#111c16",
-  border: "rgba(29,158,117,0.15)",
-  borderHover: "rgba(29,158,117,0.35)",
-  green: "#1D9E75",
-  greenLight: "#5DCAA5",
-  greenMuted: "#9FE1CB",
-  text: "#e8f0eb",
-  muted: "#8aab9a",
-  faint: "#2d4a38",
-  red: "#D4537E",
-  amber: "#EF9F27",
-  blue: "#378ADD",
+  bg: "#0a0f0d", surface: "#0f1f18", card: "#111c16",
+  border: "rgba(29,158,117,0.15)", borderHover: "rgba(29,158,117,0.35)",
+  green: "#1D9E75", greenLight: "#5DCAA5", greenMuted: "#9FE1CB",
+  text: "#e8f0eb", muted: "#8aab9a", faint: "#2d4a38",
+  red: "#D4537E", amber: "#EF9F27", blue: "#378ADD",
 };
 
 const mono: React.CSSProperties = { fontFamily: "'DM Mono', monospace" };
+const short = (pk: string) => `${pk.slice(0, 4)}…${pk.slice(-4)}`;
 
-function MetricCard({ label, value, sub, color = G.greenLight }: { label: string; value: string; sub?: string; color?: string }) {
+function MetricCard({ label, value, sub, color = G.greenLight }: {
+  label: string; value: string; sub?: string; color?: string;
+}) {
   return (
     <div style={{ background: G.surface, border: `0.5px solid ${G.border}`, borderRadius: 12, padding: "20px 22px" }}>
       <div style={{ fontSize: 11, color: G.muted, letterSpacing: "0.06em", marginBottom: 10, textTransform: "uppercase", ...mono }}>{label}</div>
@@ -37,27 +33,28 @@ function HealthBar({ value, color = G.green }: { value: number; color?: string }
   );
 }
 
-const practitioners = [
-  { initials: "DC", name: "Dr. Chen", spec: "Primary Care", staked: 500, sessions: 8, outcome: 82, trend: "+14", status: "active" },
-  { initials: "SR", name: "Dr. Rao", spec: "Nutritionist", staked: 300, sessions: 3, outcome: 54, trend: "-6", status: "watch" },
-  { initials: "AM", name: "Dr. Mehta", spec: "Cardiologist", staked: 800, sessions: 12, outcome: 91, trend: "+22", status: "excellent" },
-];
-
-const timeline = [
-  { icon: "✓", color: G.green, text: "Blood pressure normalized — Dr. Chen +120 $HEALTH", time: "2h ago" },
-  { icon: "↓", color: G.red, text: "Dr. Rao slashed 80 $HEALTH — cholesterol worsened", time: "6d ago" },
-  { icon: "⬡", color: G.blue, text: "New stake pot opened with Dr. Mehta (800 tokens)", time: "2w ago" },
-  { icon: "✓", color: G.green, text: "Cardiac stress test passed — outcome score +22", time: "3w ago" },
-  { icon: "◈", color: G.amber, text: "Diet plan review pending — 30 day checkpoint", time: "4w ago" },
-];
-
-const healthHistory = [68, 70, 69, 73, 71, 75, 74, 77, 76, 79, 78, 82];
+function Spinner() {
+  return (
+    <div style={{ display: "flex", alignItems: "center", justifyContent: "center", height: 200 }}>
+      <div style={{ width: 32, height: 32, border: `2px solid ${G.faint}`, borderTop: `2px solid ${G.green}`, borderRadius: "50%", animation: "spin 0.8s linear infinite" }} />
+      <style>{`@keyframes spin { to { transform: rotate(360deg); } }`}</style>
+    </div>
+  );
+}
 
 export default function Dashboard() {
+  const { publicKey } = useWallet();
+  const { patientProfile, activePots, protocolState, healthBalance, loading, error, refetch } = useHealthProgram();
   const [activeTab, setActiveTab] = useState("overview");
   const [sidebarOpen, setSidebarOpen] = useState(true);
 
-  const tabs = ["overview", "practitioners", "history", "settings"];
+  const healthScore = patientProfile?.healthScore ?? 0;
+  const totalStaked = activePots.reduce((s, p) => s + p.totalAmount, 0);
+  const slashEvents = activePots.filter(p => p.currentHealthScore < p.baselineHealthScore).length;
+
+  const scoreChange = patientProfile
+    ? patientProfile.healthScore - patientProfile.baselineScore
+    : 0;
 
   return (
     <div style={{ display: "flex", height: "100vh", background: G.bg, color: G.text, fontFamily: "'Outfit', sans-serif", overflow: "hidden" }}>
@@ -72,23 +69,25 @@ export default function Dashboard() {
         <nav style={{ flex: 1, padding: "16px 10px" }}>
           {[
             { id: "overview", icon: "◈", label: "Overview" },
-            { id: "practitioners", icon: "⬡", label: "Practitioners" },
-            { id: "history", icon: "◉", label: "History" },
+            { id: "pots", icon: "⬡", label: "Stake Pots" },
+            { id: "protocol", icon: "◉", label: "Protocol" },
             { id: "settings", icon: "✦", label: "Settings" },
           ].map(item => (
             <div key={item.id} onClick={() => setActiveTab(item.id)} style={{ display: "flex", alignItems: "center", gap: 12, padding: "10px 12px", borderRadius: 8, marginBottom: 4, cursor: "pointer", background: activeTab === item.id ? "rgba(29,158,117,0.12)" : "transparent", color: activeTab === item.id ? G.greenLight : G.muted, transition: "all 0.2s", border: activeTab === item.id ? `0.5px solid ${G.border}` : "0.5px solid transparent" }}>
               <span style={{ fontSize: 14, flexShrink: 0 }}>{item.icon}</span>
-              {sidebarOpen && <span style={{ fontSize: 13, fontWeight: 400 }}>{item.label}</span>}
+              {sidebarOpen && <span style={{ fontSize: 13 }}>{item.label}</span>}
             </div>
           ))}
         </nav>
 
         <div style={{ padding: "16px 10px", borderTop: `0.5px solid ${G.border}` }}>
           <div style={{ display: "flex", alignItems: "center", gap: 10, padding: "10px 12px" }}>
-            <div style={{ width: 28, height: 28, background: "rgba(29,158,117,0.15)", borderRadius: "50%", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 11, fontWeight: 600, color: G.greenLight, flexShrink: 0 }}>JS</div>
+            <div style={{ width: 28, height: 28, background: "rgba(29,158,117,0.15)", borderRadius: "50%", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 11, fontWeight: 600, color: G.greenLight, flexShrink: 0 }}>
+              {publicKey ? publicKey.toBase58().slice(0, 2).toUpperCase() : "?"}
+            </div>
             {sidebarOpen && <div>
-              <div style={{ fontSize: 12, fontWeight: 500 }}>Shrinjoy S.</div>
-              <div style={{ fontSize: 10, color: G.muted, ...mono }}>2,400 $HEALTH</div>
+              <div style={{ fontSize: 12, fontWeight: 500 }}>{publicKey ? short(publicKey.toBase58()) : "—"}</div>
+              <div style={{ fontSize: 10, color: G.muted, ...mono }}>{healthBalance.toLocaleString()} $HEALTH</div>
             </div>}
           </div>
         </div>
@@ -105,184 +104,183 @@ export default function Dashboard() {
           </div>
           <div style={{ display: "flex", alignItems: "center", gap: 14 }}>
             <div style={{ ...mono, fontSize: 12, color: G.greenLight, background: "rgba(29,158,117,0.1)", padding: "5px 12px", borderRadius: 999, border: `0.5px solid rgba(29,158,117,0.25)` }}>
-              ◆ Localnet
+              ◆ Devnet
             </div>
-            <div style={{ width: 8, height: 8, background: G.greenLight, borderRadius: "50%", animation: "pulse 2s infinite" }} />
-            <span style={{ fontSize: 12, color: G.muted }}>0x4f2…3a1</span>
+            <div style={{ width: 8, height: 8, background: G.greenLight, borderRadius: "50%" }} />
+            <span style={{ fontSize: 12, color: G.muted }}>{publicKey ? short(publicKey.toBase58()) : "—"}</span>
+            <button onClick={refetch} style={{ background: "none", border: `0.5px solid ${G.border}`, color: G.muted, borderRadius: 6, padding: "4px 10px", fontSize: 11, cursor: "pointer", ...mono }}>↻ refresh</button>
           </div>
         </header>
 
         {/* Content */}
         <div style={{ padding: "32px", flex: 1 }}>
+          {loading && <Spinner />}
+          {error && <div style={{ color: G.red, ...mono, fontSize: 13, marginBottom: 16 }}>⚠ {error}</div>}
 
-          {activeTab === "overview" && (
+          {!loading && activeTab === "overview" && (
             <>
-              {/* Metrics */}
               <div style={{ display: "grid", gridTemplateColumns: "repeat(4,1fr)", gap: 14, marginBottom: 28 }}>
-                <MetricCard label="$HEALTH balance" value="2,400" sub="↑ 320 this month" />
-                <MetricCard label="Health score" value="82" sub="+14 pts from baseline" color={G.greenLight} />
-                <MetricCard label="Total staked" value="1,600" sub="across 3 practitioners" color={G.blue} />
-                <MetricCard label="Slash events" value="1" sub="Dr. Rao · 80 tokens" color={G.red} />
+                <MetricCard
+                  label="$HEALTH balance"
+                  value={healthBalance.toLocaleString()}
+                  sub="your wallet balance"
+                />
+                <MetricCard
+                  label="Health score"
+                  value={String(healthScore)}
+                  sub={`${scoreChange >= 0 ? "+" : ""}${scoreChange} pts from baseline`}
+                  color={G.greenLight}
+                />
+                <MetricCard
+                  label="Total staked"
+                  value={totalStaked.toLocaleString()}
+                  sub={`across ${activePots.length} pot${activePots.length !== 1 ? "s" : ""}`}
+                  color={G.blue}
+                />
+                <MetricCard
+                  label="Slash events"
+                  value={String(slashEvents)}
+                  sub="pots with declined health"
+                  color={slashEvents > 0 ? G.red : G.muted}
+                />
               </div>
 
-              {/* Chart + Timeline */}
-              <div style={{ display: "grid", gridTemplateColumns: "1fr 340px", gap: 16, marginBottom: 16 }}>
-
-                {/* Chart */}
-                <div style={{ background: G.card, border: `0.5px solid ${G.border}`, borderRadius: 14, padding: "24px 28px" }}>
-                  <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 24 }}>
-                    <div>
-                      <div style={{ fontSize: 13, color: G.muted, ...mono, letterSpacing: "0.06em", marginBottom: 4 }}>HEALTH SCORE TREND</div>
-                      <div style={{ fontSize: 24, fontWeight: 700, ...mono, color: G.greenLight }}>82 <span style={{ fontSize: 13, color: G.green }}>↑ +20.6%</span></div>
+              {/* Health score bar */}
+              <div style={{ background: G.card, border: `0.5px solid ${G.border}`, borderRadius: 14, padding: "24px 28px", marginBottom: 16 }}>
+                <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 20 }}>
+                  <div>
+                    <div style={{ fontSize: 13, color: G.muted, ...mono, letterSpacing: "0.06em", marginBottom: 4 }}>HEALTH SCORE</div>
+                    <div style={{ fontSize: 28, fontWeight: 700, ...mono, color: G.greenLight }}>
+                      {healthScore} <span style={{ fontSize: 14, color: healthScore >= patientProfile?.baselineScore! ? G.green : G.red }}>
+                        {scoreChange >= 0 ? "↑" : "↓"} {Math.abs(scoreChange)} pts
+                      </span>
                     </div>
-                    <div style={{ ...mono, fontSize: 11, color: G.faint }}>12 weeks</div>
                   </div>
-
-                  {/* SVG chart */}
-                  <svg viewBox="0 0 560 120" style={{ width: "100%", height: 120 }}>
-                    <defs>
-                      <linearGradient id="chartGrad" x1="0" y1="0" x2="0" y2="1">
-                        <stop offset="0%" stopColor="#1D9E75" stopOpacity="0.3" />
-                        <stop offset="100%" stopColor="#1D9E75" stopOpacity="0" />
-                      </linearGradient>
-                    </defs>
-                    {/* Grid lines */}
-                    {[0, 40, 80].map((y, i) => (
-                      <line key={i} x1="0" y1={y} x2="560" y2={y} stroke="rgba(29,158,117,0.08)" strokeWidth="1" />
-                    ))}
-                    {/* Area fill */}
-                    <path
-                      d={`M ${healthHistory.map((v, i) => `${i * 50},${110 - ((v - 65) / 25) * 100}`).join(" L ")} L ${(healthHistory.length - 1) * 50},110 L 0,110 Z`}
-                      fill="url(#chartGrad)"
-                    />
-                    {/* Line */}
-                    <polyline
-                      points={healthHistory.map((v, i) => `${i * 50},${110 - ((v - 65) / 25) * 100}`).join(" ")}
-                      fill="none"
-                      stroke="#1D9E75"
-                      strokeWidth="2"
-                      strokeLinejoin="round"
-                    />
-                    {/* Dots */}
-                    {healthHistory.map((v, i) => (
-                      <circle key={i} cx={i * 50} cy={110 - ((v - 65) / 25) * 100} r="3" fill="#1D9E75" />
-                    ))}
-                    {/* Latest dot */}
-                    <circle cx={(healthHistory.length - 1) * 50} cy={110 - ((healthHistory[healthHistory.length - 1] - 65) / 25) * 100} r="5" fill="#5DCAA5" />
-                  </svg>
+                  <div style={{ ...mono, fontSize: 11, color: G.faint }}>baseline: {patientProfile?.baselineScore ?? "—"}</div>
                 </div>
-
-                {/* Timeline */}
-                <div style={{ background: G.card, border: `0.5px solid ${G.border}`, borderRadius: 14, padding: "24px" }}>
-                  <div style={{ fontSize: 11, ...mono, color: G.muted, letterSpacing: "0.06em", marginBottom: 20 }}>RECENT EVENTS</div>
-                  <div style={{ position: "relative", paddingLeft: 16 }}>
-                    <div style={{ position: "absolute", left: 6, top: 0, bottom: 0, width: 1, background: G.border }} />
-                    {timeline.map((t, i) => (
-                      <div key={i} style={{ position: "relative", marginBottom: 18 }}>
-                        <div style={{ position: "absolute", left: -13, top: 3, width: 8, height: 8, borderRadius: "50%", background: G.card, border: `1.5px solid ${t.color}` }} />
-                        <div style={{ fontSize: 12, color: G.text, lineHeight: 1.5, marginBottom: 3 }}>{t.text}</div>
-                        <div style={{ fontSize: 10, color: G.faint, ...mono }}>{t.time}</div>
-                      </div>
-                    ))}
-                  </div>
+                <HealthBar value={healthScore} color={healthScore >= 70 ? G.green : healthScore >= 50 ? G.amber : G.red} />
+                <div style={{ display: "flex", justifyContent: "space-between", marginTop: 8, fontSize: 11, color: G.faint, ...mono }}>
+                  <span>0</span><span>50</span><span>100</span>
                 </div>
               </div>
 
-              {/* Pot distribution */}
-              <div style={{ background: G.card, border: `0.5px solid ${G.border}`, borderRadius: 14, padding: "24px 28px" }}>
-                <div style={{ fontSize: 11, ...mono, color: G.muted, letterSpacing: "0.06em", marginBottom: 20 }}>STAKE POT DISTRIBUTION</div>
-                <div style={{ display: "flex", gap: 40, alignItems: "center" }}>
-                  <div style={{ flex: 1 }}>
-                    <div style={{ display: "flex", height: 32, borderRadius: 999, overflow: "hidden" }}>
-                      <div style={{ width: "37%", background: G.green, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 11, ...mono, fontWeight: 500, color: G.bg }}>You 37%</div>
-                      <div style={{ width: "63%", background: G.blue, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 11, ...mono, fontWeight: 500, color: "white" }}>Practitioners 63%</div>
+              {/* Sessions counter */}
+              {patientProfile && (
+                <div style={{ background: G.card, border: `0.5px solid ${G.border}`, borderRadius: 14, padding: "20px 28px" }}>
+                  <div style={{ display: "grid", gridTemplateColumns: "repeat(3,1fr)", gap: 24 }}>
+                    <div style={{ textAlign: "center" }}>
+                      <div style={{ ...mono, fontSize: 32, fontWeight: 700, color: G.text }}>{patientProfile.sessionCount}</div>
+                      <div style={{ fontSize: 12, color: G.muted, marginTop: 4 }}>total sessions</div>
                     </div>
-                    <div style={{ display: "flex", justifyContent: "space-between", marginTop: 8, fontSize: 11, color: G.muted }}>
-                      <span>Patient earns if outcomes decline</span>
-                      <span>Practitioners earn on improvement</span>
+                    <div style={{ textAlign: "center" }}>
+                      <div style={{ ...mono, fontSize: 32, fontWeight: 700, color: G.green }}>{patientProfile.totalEarned.toLocaleString()}</div>
+                      <div style={{ fontSize: 12, color: G.muted, marginTop: 4 }}>$HEALTH earned</div>
+                    </div>
+                    <div style={{ textAlign: "center" }}>
+                      <div style={{ ...mono, fontSize: 32, fontWeight: 700, color: G.blue }}>{patientProfile.activePots}</div>
+                      <div style={{ fontSize: 12, color: G.muted, marginTop: 4 }}>active pots</div>
                     </div>
                   </div>
-                  <div style={{ ...mono, fontSize: 28, fontWeight: 700, color: G.text, whiteSpace: "nowrap" }}>1,600 <span style={{ fontSize: 14, color: G.muted }}>$HEALTH</span></div>
                 </div>
-              </div>
+              )}
             </>
           )}
 
-          {activeTab === "practitioners" && (
+          {!loading && activeTab === "pots" && (
             <div style={{ display: "flex", flexDirection: "column", gap: 14 }}>
-              {practitioners.map((p, i) => {
-                const statusColor = p.status === "excellent" ? G.green : p.status === "watch" ? G.amber : G.blue;
-                const statusBg = p.status === "excellent" ? "rgba(29,158,117,0.1)" : p.status === "watch" ? "rgba(239,159,39,0.1)" : "rgba(55,138,221,0.1)";
-                const trendColor = p.trend.startsWith("+") ? G.green : G.red;
+              {activePots.length === 0 ? (
+                <div style={{ background: G.card, border: `0.5px solid ${G.border}`, borderRadius: 14, padding: "48px", textAlign: "center" }}>
+                  <div style={{ fontSize: 32, marginBottom: 16 }}>⬡</div>
+                  <div style={{ fontSize: 15, color: G.muted }}>No stake pots yet</div>
+                  <div style={{ fontSize: 13, color: G.faint, marginTop: 8 }}>Open a pot with a practitioner to begin treatment</div>
+                </div>
+              ) : activePots.map((pot, i) => {
+                const improved = pot.currentHealthScore >= pot.baselineHealthScore;
                 return (
                   <div key={i} style={{ background: G.card, border: `0.5px solid ${G.border}`, borderRadius: 14, padding: "24px 28px" }}>
-                    <div style={{ display: "flex", alignItems: "center", gap: 16, marginBottom: 20 }}>
-                      <div style={{ width: 44, height: 44, borderRadius: "50%", background: "rgba(29,158,117,0.1)", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 14, fontWeight: 600, color: G.greenLight, flexShrink: 0 }}>{p.initials}</div>
-                      <div style={{ flex: 1 }}>
-                        <div style={{ fontSize: 15, fontWeight: 500, marginBottom: 3 }}>{p.name}</div>
-                        <div style={{ fontSize: 12, color: G.muted }}>{p.spec}</div>
+                    <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 20 }}>
+                      <div>
+                        <div style={{ fontSize: 13, fontWeight: 500, marginBottom: 4 }}>Pot with {short(pot.practitioner.toBase58())}</div>
+                        <div style={{ ...mono, fontSize: 11, color: G.faint }}>expires {new Date(pot.expiresAt * 1000).toLocaleDateString()}</div>
                       </div>
-                      <div style={{ ...mono, fontSize: 11, padding: "4px 12px", borderRadius: 999, background: statusBg, color: statusColor, border: `0.5px solid ${statusColor}30`, textTransform: "uppercase", letterSpacing: "0.04em" }}>{p.status}</div>
-                      <div style={{ ...mono, fontSize: 18, fontWeight: 700, color: trendColor, minWidth: 60, textAlign: "right" }}>{p.trend}</div>
+                      <div style={{ ...mono, fontSize: 11, padding: "4px 12px", borderRadius: 999, background: pot.status === "active" ? "rgba(29,158,117,0.1)" : "rgba(239,159,39,0.1)", color: pot.status === "active" ? G.green : G.amber, border: `0.5px solid ${pot.status === "active" ? G.green : G.amber}30`, textTransform: "uppercase" }}>{pot.status}</div>
                     </div>
-                    <div style={{ display: "grid", gridTemplateColumns: "repeat(3,1fr)", gap: 16, marginBottom: 16 }}>
+
+                    <div style={{ display: "grid", gridTemplateColumns: "repeat(4,1fr)", gap: 16, marginBottom: 16 }}>
                       <div>
-                        <div style={{ fontSize: 10, color: G.muted, ...mono, marginBottom: 4, letterSpacing: "0.06em" }}>STAKED</div>
-                        <div style={{ fontSize: 20, fontWeight: 700, ...mono, color: G.text }}>{p.staked}</div>
-                        <div style={{ fontSize: 10, color: G.faint }}>$HEALTH tokens</div>
+                        <div style={{ fontSize: 10, color: G.muted, ...mono, marginBottom: 4 }}>TOTAL POT</div>
+                        <div style={{ fontSize: 20, fontWeight: 700, ...mono }}>{pot.totalAmount}</div>
+                        <div style={{ fontSize: 10, color: G.faint }}>$HEALTH</div>
                       </div>
                       <div>
-                        <div style={{ fontSize: 10, color: G.muted, ...mono, marginBottom: 4, letterSpacing: "0.06em" }}>SESSIONS</div>
-                        <div style={{ fontSize: 20, fontWeight: 700, ...mono, color: G.text }}>{p.sessions}</div>
-                        <div style={{ fontSize: 10, color: G.faint }}>completed</div>
+                        <div style={{ fontSize: 10, color: G.muted, ...mono, marginBottom: 4 }}>YOUR STAKE</div>
+                        <div style={{ fontSize: 20, fontWeight: 700, ...mono }}>{pot.patientStaked}</div>
+                        <div style={{ fontSize: 10, color: G.faint }}>$HEALTH</div>
                       </div>
                       <div>
-                        <div style={{ fontSize: 10, color: G.muted, ...mono, marginBottom: 4, letterSpacing: "0.06em" }}>OUTCOME SCORE</div>
-                        <div style={{ fontSize: 20, fontWeight: 700, ...mono, color: p.outcome > 70 ? G.green : G.amber }}>{p.outcome}/100</div>
-                        <div style={{ fontSize: 10, color: G.faint }}>health outcome</div>
+                        <div style={{ fontSize: 10, color: G.muted, ...mono, marginBottom: 4 }}>SESSIONS</div>
+                        <div style={{ fontSize: 20, fontWeight: 700, ...mono }}>{pot.sessionCount}</div>
+                      </div>
+                      <div>
+                        <div style={{ fontSize: 10, color: G.muted, ...mono, marginBottom: 4 }}>HEALTH Δ</div>
+                        <div style={{ fontSize: 20, fontWeight: 700, ...mono, color: improved ? G.green : G.red }}>
+                          {improved ? "+" : ""}{pot.currentHealthScore - pot.baselineHealthScore} pts
+                        </div>
                       </div>
                     </div>
-                    <HealthBar value={p.outcome} color={p.outcome > 70 ? G.green : G.amber} />
+
+                    {/* Share distribution */}
+                    <div style={{ height: 8, borderRadius: 999, overflow: "hidden", display: "flex" }}>
+                      <div style={{ width: `${pot.patientShareBps / 100}%`, background: G.green }} />
+                      <div style={{ width: `${pot.practitionerShareBps / 100}%`, background: G.blue }} />
+                    </div>
+                    <div style={{ display: "flex", justifyContent: "space-between", marginTop: 6, fontSize: 11, color: G.faint, ...mono }}>
+                      <span>You {(pot.patientShareBps / 100).toFixed(0)}%</span>
+                      <span>Practitioner {(pot.practitionerShareBps / 100).toFixed(0)}%</span>
+                    </div>
                   </div>
                 );
               })}
             </div>
           )}
 
-          {activeTab === "history" && (
-            <div style={{ background: G.card, border: `0.5px solid ${G.border}`, borderRadius: 14, overflow: "hidden" }}>
-              <div style={{ padding: "20px 28px", borderBottom: `0.5px solid ${G.border}` }}>
-                <div style={{ fontSize: 11, ...mono, color: G.muted, letterSpacing: "0.06em" }}>TRANSACTION HISTORY</div>
-              </div>
+          {!loading && activeTab === "protocol" && protocolState && (
+            <div style={{ display: "grid", gridTemplateColumns: "repeat(2,1fr)", gap: 16 }}>
               {[
-                { type: "earn", label: "Outcome reward", from: "Dr. Chen", amount: "+120", date: "Apr 25, 2025" },
-                { type: "slash", label: "Slash applied", from: "Dr. Rao", amount: "-80", date: "Apr 19, 2025" },
-                { type: "stake", label: "Pot opened", from: "Dr. Mehta", amount: "-800", date: "Apr 10, 2025" },
-                { type: "earn", label: "Outcome reward", from: "Dr. Mehta", amount: "+220", date: "Mar 28, 2025" },
-                { type: "stake", label: "Pot opened", from: "Dr. Chen", amount: "-500", date: "Feb 14, 2025" },
-              ].map((tx, i) => (
-                <div key={i} style={{ display: "flex", alignItems: "center", padding: "16px 28px", borderBottom: `0.5px solid ${G.border}`, gap: 16 }}>
-                  <div style={{ width: 32, height: 32, borderRadius: 8, background: tx.type === "earn" ? "rgba(29,158,117,0.1)" : tx.type === "slash" ? "rgba(212,83,126,0.1)" : "rgba(55,138,221,0.1)", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 12, color: tx.type === "earn" ? G.green : tx.type === "slash" ? G.red : G.blue, flexShrink: 0 }}>
-                    {tx.type === "earn" ? "↑" : tx.type === "slash" ? "✕" : "⬡"}
-                  </div>
-                  <div style={{ flex: 1 }}>
-                    <div style={{ fontSize: 13, fontWeight: 500 }}>{tx.label}</div>
-                    <div style={{ fontSize: 11, color: G.muted, marginTop: 2 }}>{tx.from}</div>
-                  </div>
-                  <div style={{ ...mono, fontSize: 14, fontWeight: 600, color: tx.amount.startsWith("+") ? G.green : G.red }}>{tx.amount} $HEALTH</div>
-                  <div style={{ ...mono, fontSize: 11, color: G.faint, minWidth: 90, textAlign: "right" }}>{tx.date}</div>
+                { label: "Total patients", value: protocolState.totalPatients.toLocaleString() },
+                { label: "Total practitioners", value: protocolState.totalPractitioners.toLocaleString() },
+                { label: "Total pots opened", value: protocolState.totalPots.toLocaleString() },
+                { label: "Total $HEALTH slashed", value: protocolState.totalSlashed.toLocaleString() },
+                { label: "Total $HEALTH rewarded", value: protocolState.totalRewarded.toLocaleString() },
+                { label: "Health mint", value: short(protocolState.healthMint.toBase58()) },
+              ].map((s, i) => (
+                <div key={i} style={{ background: G.card, border: `0.5px solid ${G.border}`, borderRadius: 12, padding: "20px 24px" }}>
+                  <div style={{ fontSize: 11, color: G.muted, ...mono, letterSpacing: "0.06em", marginBottom: 10 }}>{s.label.toUpperCase()}</div>
+                  <div style={{ fontSize: 24, fontWeight: 700, ...mono, color: G.text }}>{s.value}</div>
                 </div>
               ))}
             </div>
           )}
 
-          {activeTab === "settings" && (
+          {!loading && activeTab === "settings" && (
             <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 16 }}>
               {[
-                { title: "Wallet", fields: [{ label: "Connected address", value: "0x4f2a3…3a1" }, { label: "Network", value: "Localnet" }] },
-                { title: "Notifications", fields: [{ label: "Outcome alerts", value: "Enabled" }, { label: "Slash warnings", value: "Enabled" }] },
-                { title: "Health data", fields: [{ label: "Oracle source", value: "Self-reported" }, { label: "Update frequency", value: "Per session" }] },
-                { title: "Token preferences", fields: [{ label: "Auto-stake", value: "Off" }, { label: "Min stake amount", value: "100 $HEALTH" }] },
+                { title: "Wallet", fields: [
+                  { label: "Connected address", value: publicKey ? short(publicKey.toBase58()) : "—" },
+                  { label: "Network", value: "Devnet" },
+                ]},
+                { title: "Patient profile", fields: [
+                  { label: "Health score", value: String(healthScore) },
+                  { label: "Sessions completed", value: String(patientProfile?.sessionCount ?? 0) },
+                ]},
+                { title: "Token", fields: [
+                  { label: "$HEALTH balance", value: `${healthBalance.toLocaleString()} $H` },
+                  { label: "Total earned", value: `${patientProfile?.totalEarned.toLocaleString() ?? 0} $H` },
+                ]},
+                { title: "Program", fields: [
+                  { label: "Program ID", value: short("EjT1hTKBsGouxAfJJJjjH4FoMUda9bBYyGPuu3tknDVx") },
+                  { label: "Active pots", value: String(patientProfile?.activePots ?? 0) },
+                ]},
               ].map((section, i) => (
                 <div key={i} style={{ background: G.card, border: `0.5px solid ${G.border}`, borderRadius: 14, padding: "24px 28px" }}>
                   <div style={{ fontSize: 11, ...mono, color: G.muted, letterSpacing: "0.06em", marginBottom: 20 }}>{section.title.toUpperCase()}</div>
