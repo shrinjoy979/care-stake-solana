@@ -1,5 +1,7 @@
 use anchor_lang::prelude::*;
 use anchor_spl::token::{self, Mint, Token, TokenAccount, Transfer, MintTo, Burn};
+use anchor_spl::associated_token::AssociatedToken;
+
 
 declare_id!("B3hcYp5nnHH8iWXoEsF2UJpNy82fi7thTHeKJBoNq4pa");
 
@@ -586,8 +588,8 @@ pub struct RegisterPatient<'info> {
     #[account(
         init_if_needed,
         payer = patient_wallet,
-        token::mint = health_mint,
-        token::authority = patient_wallet,
+        associated_token::mint = health_mint,
+        associated_token::authority = patient_wallet,
     )]
     pub patient_token_account: Account<'info, TokenAccount>,
 
@@ -607,6 +609,7 @@ pub struct RegisterPatient<'info> {
     pub patient_wallet: Signer<'info>,
 
     pub token_program: Program<'info, Token>,
+    pub associated_token_program: Program<'info, AssociatedToken>, 
     pub system_program: Program<'info, System>,
     pub rent: Sysvar<'info, Rent>,
 }
@@ -625,8 +628,8 @@ pub struct RegisterPractitioner<'info> {
     #[account(
         init_if_needed,
         payer = practitioner_wallet,
-        token::mint = health_mint,
-        token::authority = practitioner_wallet,
+        associated_token::mint = health_mint,
+        associated_token::authority = practitioner_wallet,
     )]
     pub practitioner_token_account: Account<'info, TokenAccount>,
 
@@ -646,6 +649,7 @@ pub struct RegisterPractitioner<'info> {
     pub practitioner_wallet: Signer<'info>,
 
     pub token_program: Program<'info, Token>,
+    pub associated_token_program: Program<'info, AssociatedToken>, 
     pub system_program: Program<'info, System>,
     pub rent: Sysvar<'info, Rent>,
 }
