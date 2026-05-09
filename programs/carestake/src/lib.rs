@@ -1,7 +1,7 @@
 use anchor_lang::prelude::*;
 use anchor_spl::token::{self, Mint, Token, TokenAccount, Transfer, MintTo, Burn};
 
-declare_id!("EjT1hTKBsGouxAfJJJjjH4FoMUda9bBYyGPuu3tknDVx");
+declare_id!("B3hcYp5nnHH8iWXoEsF2UJpNy82fi7thTHeKJBoNq4pa");
 
 // ─────────────────────────────────────────────
 //  Constants
@@ -45,6 +45,7 @@ pub mod crypto_healthcare {
         protocol.total_slashed = 0;
         protocol.total_rewarded = 0;
         protocol.bump = ctx.bumps.protocol_state;
+        protocol.treasury = ctx.accounts.treasury.key();
 
         // Mint initial supply to treasury
         let seeds = &[b"protocol".as_ref(), &[protocol.bump]];

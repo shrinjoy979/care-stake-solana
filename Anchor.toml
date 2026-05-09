@@ -6,7 +6,7 @@ resolution = true
 skip-lint = false
 
 [programs.localnet]
-carestake = "EjT1hTKBsGouxAfJJJjjH4FoMUda9bBYyGPuu3tknDVx"
+carestake = "B3hcYp5nnHH8iWXoEsF2UJpNy82fi7thTHeKJBoNq4pa"
 
 [registry]
 url = "https://api.apr.dev"

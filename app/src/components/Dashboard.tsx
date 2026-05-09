@@ -278,7 +278,7 @@ export default function Dashboard() {
                   { label: "Total earned", value: `${patientProfile?.totalEarned.toLocaleString() ?? 0} $H` },
                 ]},
                 { title: "Program", fields: [
-                  { label: "Program ID", value: short("EjT1hTKBsGouxAfJJJjjH4FoMUda9bBYyGPuu3tknDVx") },
+                  { label: "Program ID", value: short("B3hcYp5nnHH8iWXoEsF2UJpNy82fi7thTHeKJBoNq4pa") },
                   { label: "Active pots", value: String(patientProfile?.activePots ?? 0) },
                 ]},
               ].map((section, i) => (
