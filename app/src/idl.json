@@ -1,5 +1,5 @@
 {
-  "address": "EjT1hTKBsGouxAfJJJjjH4FoMUda9bBYyGPuu3tknDVx",
+  "address": "B3hcYp5nnHH8iWXoEsF2UJpNy82fi7thTHeKJBoNq4pa",
   "metadata": {
     "name": "crypto_healthcare",
     "version": "0.1.0",
@@ -1064,8 +1064,7 @@
         225,
         60,
         179
-      ],
-      "size": 107
+      ]
     },
     {
       "name": "PractitionerProfile",
@@ -1078,8 +1077,7 @@
         35,
         153,
         104
-      ],
-      "size": 139
+      ]
     },
     {
       "name": "ProtocolState",
@@ -1092,8 +1090,7 @@
         140,
         195,
         248
-      ],
-      "size": 113
+      ]
     },
     {
       "name": "SessionRecord",
@@ -1106,8 +1103,7 @@
         195,
         20,
         170
-      ],
-      "size": 149
+      ]
     },
     {
       "name": "StakePot",
@@ -1120,8 +1116,7 @@
         114,
         161,
         107
-      ],
-      "size": 123
+      ]
     }
   ],
   "events": [
@@ -1650,6 +1645,10 @@
           },
           {
             "name": "health_mint",
+            "type": "pubkey"
+          },
+          {
+            "name": "treasury",
             "type": "pubkey"
           },
           {
