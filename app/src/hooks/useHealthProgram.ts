@@ -13,14 +13,12 @@ import {
   SYSVAR_RENT_PUBKEY,
 } from "@solana/web3.js";
 
-// ── Constants ──────────────────────────────────────────────────────────────
 const PROGRAM_ID = new PublicKey("B3hcYp5nnHH8iWXoEsF2UJpNy82fi7thTHeKJBoNq4pa");
 const PATIENT_SEED      = Buffer.from("patient");
 const PRACTITIONER_SEED = Buffer.from("practitioner");
 const PROTOCOL_SEED     = Buffer.from("protocol");
 const POT_SEED          = Buffer.from("stake_pot");
 
-// ── Types ──────────────────────────────────────────────────────────────────
 export type PatientProfile = {
   wallet: PublicKey;
   healthScore: number;
@@ -58,13 +56,13 @@ export type ProtocolState = {
   treasury: PublicKey | null;
 };
 
-// ── Hook ───────────────────────────────────────────────────────────────────
 export function useHealthProgram() {
   const { connection } = useConnection();
   const wallet = useWallet();
 
   const [program,        setProgram]        = useState<Program | null>(null);
-  const [patientProfile, setPatientProfile] = useState<PatientProfile | null>(null);
+  // ✅ undefined = not yet fetched, null = fetched but not registered
+  const [patientProfile, setPatientProfile] = useState<PatientProfile | null | undefined>(undefined);
   const [activePots,     setActivePots]     = useState<StakePot[]>([]);
   const [protocolState,  setProtocolState]  = useState<ProtocolState | null>(null);
   const [treasuryPubkey, setTreasuryPubkey] = useState<PublicKey | null>(null);
@@ -72,9 +70,10 @@ export function useHealthProgram() {
   const [loading,        setLoading]        = useState(false);
   const [error,          setError]          = useState<string | null>(null);
 
-  // ── Init program ──────────────────────────────────────────────────────────
   useEffect(() => {
     if (!wallet.publicKey || !wallet.signTransaction) return;
+    // ✅ Reset to undefined when wallet changes so we don't flash stale state
+    setPatientProfile(undefined);
     try {
       const provider = new AnchorProvider(connection, wallet as any, {
         commitment: "confirmed",
@@ -91,7 +90,6 @@ export function useHealthProgram() {
     if (program && wallet.publicKey) fetchAll();
   }, [program, wallet.publicKey]);
 
-  // ── fetchAll ──────────────────────────────────────────────────────────────
   const fetchAll = useCallback(async () => {
     if (!program || !wallet.publicKey) return;
     setLoading(true);
@@ -109,22 +107,16 @@ export function useHealthProgram() {
     }
   }, [program, wallet.publicKey]);
 
-  // ── Resolve treasury from on-chain data ───────────────────────────────────
-  // Strategy 1: read `acc.treasury` if you added that field to ProtocolState
-  // Strategy 2: discover via getTokenAccountsByOwner (protocol PDA owns treasury)
   const resolveTreasury = useCallback(async (
     acc: any,
     mint: PublicKey,
     protocolPda: PublicKey,
   ): Promise<PublicKey> => {
-    // Strategy 1 — stored field (works after you add `treasury: Pubkey` to ProtocolState)
     const defaultPk = PublicKey.default.toBase58();
     if (acc.treasury && acc.treasury.toBase58() !== defaultPk) {
-      console.log("[treasury] from ProtocolState field:", acc.treasury.toBase58());
       return acc.treasury as PublicKey;
     }
 
-    // Strategy 2 — discover by owner
     const tokenAccounts = await connection.getTokenAccountsByOwner(protocolPda, {
       mint,
       programId: TOKEN_PROGRAM_ID,
@@ -132,18 +124,13 @@ export function useHealthProgram() {
 
     if (tokenAccounts.value.length === 0) {
       throw new Error(
-        "Treasury not found. " +
-        "Ensure initialize_protocol has been called on-chain. " +
-        "Protocol PDA: " + protocolPda.toBase58()
+        "Treasury not found. Protocol PDA: " + protocolPda.toBase58()
       );
     }
 
-    const treasury = tokenAccounts.value[0].pubkey;
-    console.log("[treasury] discovered via owner lookup:", treasury.toBase58());
-    return treasury;
+    return tokenAccounts.value[0].pubkey;
   }, [connection]);
 
-  // ── fetchProtocolState ────────────────────────────────────────────────────
   const fetchProtocolState = useCallback(async (prog: Program): Promise<PublicKey | null> => {
     try {
       const [protocolPda] = PublicKey.findProgramAddressSync([PROTOCOL_SEED], PROGRAM_ID);
@@ -171,7 +158,6 @@ export function useHealthProgram() {
     }
   }, [resolveTreasury]);
 
-  // ── fetchTokenBalance ─────────────────────────────────────────────────────
   const fetchTokenBalance = useCallback(async (
     mint: PublicKey,
     walletPubkey: PublicKey,
@@ -185,7 +171,6 @@ export function useHealthProgram() {
     }
   }, [connection]);
 
-  // ── fetchPatientProfile ───────────────────────────────────────────────────
   const fetchPatientProfile = useCallback(async (prog: Program) => {
     if (!wallet.publicKey) return;
     try {
@@ -206,11 +191,11 @@ export function useHealthProgram() {
       });
       await fetchActivePots(prog, wallet.publicKey);
     } catch {
+      // ✅ null = fetched, confirmed not registered
       setPatientProfile(null);
     }
   }, [wallet.publicKey]);
 
-  // ── fetchActivePots ───────────────────────────────────────────────────────
   const fetchActivePots = useCallback(async (
     prog: Program,
     walletPubkey: PublicKey,
@@ -240,68 +225,59 @@ export function useHealthProgram() {
   }, []);
 
   const registerPatient = useCallback(async (name: string) => {
-  if (!program || !wallet.publicKey || !wallet.signTransaction)
-    throw new Error("Wallet not connected");
+    if (!program || !wallet.publicKey || !wallet.signTransaction)
+      throw new Error("Wallet not connected");
 
-  const [protocolPda] = PublicKey.findProgramAddressSync([PROTOCOL_SEED], PROGRAM_ID);
-  const [patientPda]  = PublicKey.findProgramAddressSync(
-    [PATIENT_SEED, wallet.publicKey.toBuffer()], PROGRAM_ID
-  );
+    const [protocolPda] = PublicKey.findProgramAddressSync([PROTOCOL_SEED], PROGRAM_ID);
+    const [patientPda]  = PublicKey.findProgramAddressSync(
+      [PATIENT_SEED, wallet.publicKey.toBuffer()], PROGRAM_ID
+    );
 
-  const acc = await (program.account as any).protocolState.fetch(protocolPda);
-  const mint: PublicKey = acc.healthMint;
+    const acc = await (program.account as any).protocolState.fetch(protocolPda);
+    const mint: PublicKey = acc.healthMint;
 
-  const treasury = treasuryPubkey ?? await resolveTreasury(acc, mint, protocolPda);
-  if (!treasuryPubkey) setTreasuryPubkey(treasury);
+    const treasury = treasuryPubkey ?? await resolveTreasury(acc, mint, protocolPda);
+    if (!treasuryPubkey) setTreasuryPubkey(treasury);
 
-  const nameHash = Array.from(
-    new Uint8Array(
-      await crypto.subtle.digest("SHA-256", new TextEncoder().encode(name))
-    )
-  );
+    const nameHash = Array.from(
+      new Uint8Array(
+        await crypto.subtle.digest("SHA-256", new TextEncoder().encode(name))
+      )
+    );
 
-  const patientAta = await getAssociatedTokenAddress(
-    mint,
-    wallet.publicKey,
-  );
+    const patientAta = await getAssociatedTokenAddress(mint, wallet.publicKey);
+    const ataInfo = await connection.getAccountInfo(patientAta);
+    const preInstructions = ataInfo ? [] : [
+      createAssociatedTokenAccountInstruction(
+        wallet.publicKey, patientAta, wallet.publicKey, mint,
+      )
+    ];
 
-  // Check if ATA exists
-  const ataInfo = await connection.getAccountInfo(patientAta);
-  const preInstructions = ataInfo ? [] : [
-    createAssociatedTokenAccountInstruction(
-      wallet.publicKey,
-      patientAta,
-      wallet.publicKey,
-      mint,
-    )
-  ];
+    setLoading(true);
+    try {
+      const tx = await (program.methods as any)
+        .registerPatient(nameHash, new BN(500_000_000))
+        .accounts({
+          patientProfile:      patientPda,
+          patientTokenAccount: patientAta,
+          protocolState:       protocolPda,
+          treasury,
+          healthMint:          mint,
+          patientWallet:       wallet.publicKey,
+          tokenProgram:        TOKEN_PROGRAM_ID,
+          systemProgram:       SystemProgram.programId,
+          rent:                SYSVAR_RENT_PUBKEY,
+        })
+        .preInstructions(preInstructions)
+        .rpc({ commitment: "confirmed" });
 
-  setLoading(true);
-  try {
-    const tx = await (program.methods as any)
-      .registerPatient(nameHash, new BN(500_000_000))
-      .accounts({
-        patientProfile:      patientPda,
-        patientTokenAccount: patientAta,
-        protocolState:       protocolPda,
-        treasury,
-        healthMint:          mint,
-        patientWallet:       wallet.publicKey,
-        tokenProgram:        TOKEN_PROGRAM_ID,
-        systemProgram:       SystemProgram.programId,
-        rent:                SYSVAR_RENT_PUBKEY,
-      })
-      .preInstructions(preInstructions)  // creates ATA in same tx if needed
-      .rpc({ commitment: "confirmed" });
+      console.log("Registered! tx:", tx);
+      await fetchAll();
+    } finally {
+      setLoading(false);
+    }
+  }, [program, wallet, connection, treasuryPubkey, resolveTreasury, fetchAll]);
 
-    console.log("Registered! tx:", tx);
-    await fetchAll();
-  } finally {
-    setLoading(false);
-  }
-}, [program, wallet, connection, treasuryPubkey, resolveTreasury, fetchAll]);
-
-  // ── openStakePot ──────────────────────────────────────────────────────────
   const openStakePot = useCallback(async (
     practitionerWallet: PublicKey,
     patientStake: number,
@@ -362,7 +338,7 @@ export function useHealthProgram() {
     healthBalance,
     loading,
     error,
-    isRegistered: patientProfile !== null,
+    isRegistered: (loading || patientProfile === undefined) ? null : patientProfile !== null,
     registerPatient,
     openStakePot,
     refetch: fetchAll,
