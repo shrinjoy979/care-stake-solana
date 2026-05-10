@@ -43,7 +43,7 @@ function Spinner() {
 }
 
 export default function Dashboard() {
-  const { publicKey } = useWallet();
+  const { publicKey, disconnect } = useWallet();
   const { patientProfile, activePots, protocolState, healthBalance, loading, error, refetch } = useHealthProgram();
   const [activeTab, setActiveTab] = useState("overview");
   const [sidebarOpen, setSidebarOpen] = useState(true);
@@ -82,13 +82,48 @@ export default function Dashboard() {
 
         <div style={{ padding: "16px 10px", borderTop: `0.5px solid ${G.border}` }}>
           <div style={{ display: "flex", alignItems: "center", gap: 10, padding: "10px 12px" }}>
-            <div style={{ width: 28, height: 28, background: "rgba(29,158,117,0.15)", borderRadius: "50%", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 11, fontWeight: 600, color: G.greenLight, flexShrink: 0 }}>
+            <div style={{
+              width: 28, height: 28,
+              background: "rgba(29,158,117,0.15)",
+              borderRadius: "50%",
+              display: "flex", alignItems: "center", justifyContent: "center",
+              fontSize: 11, fontWeight: 600, color: G.greenLight, flexShrink: 0
+            }}>
               {publicKey ? publicKey.toBase58().slice(0, 2).toUpperCase() : "?"}
             </div>
-            {sidebarOpen && <div>
-              <div style={{ fontSize: 12, fontWeight: 500 }}>{publicKey ? short(publicKey.toBase58()) : "—"}</div>
-              <div style={{ fontSize: 10, color: G.muted, ...mono }}>{healthBalance.toLocaleString()} $HEALTH</div>
-            </div>}
+            {sidebarOpen && (
+              <div style={{ flex: 1, minWidth: 0 }}>
+                <div style={{ fontSize: 12, fontWeight: 500 }}>
+                  {publicKey ? short(publicKey.toBase58()) : "—"}
+                </div>
+                <div style={{ fontSize: 10, color: G.muted, ...mono }}>
+                  {healthBalance.toLocaleString()} $HEALTH
+                </div>
+              </div>
+            )}
+          </div>
+
+          <div
+            onClick={() => disconnect()}
+            style={{
+              display: "flex", alignItems: "center", gap: 12,
+              padding: "10px 12px", borderRadius: 8,
+              cursor: "pointer",
+              color: G.red,
+              border: `0.5px solid transparent`,
+              transition: "all 0.2s",
+            }}
+            onMouseEnter={e => {
+              (e.currentTarget as HTMLElement).style.background = "rgba(212,83,126,0.08)";
+              (e.currentTarget as HTMLElement).style.borderColor = "rgba(212,83,126,0.2)";
+            }}
+            onMouseLeave={e => {
+              (e.currentTarget as HTMLElement).style.background = "transparent";
+              (e.currentTarget as HTMLElement).style.borderColor = "transparent";
+            }}
+          >
+            <span style={{ fontSize: 14, flexShrink: 0 }}>⏻</span>
+            {sidebarOpen && <span style={{ fontSize: 13 }}>Disconnect</span>}
           </div>
         </div>
       </aside>
