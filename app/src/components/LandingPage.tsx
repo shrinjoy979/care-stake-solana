@@ -123,7 +123,7 @@ export default function LandingPage() {
         <div style={{ opacity:visible ? 1 : 0, animation: visible ? "fadeUp 0.8s ease forwards" : "none" }}>
           <div style={{ display:"inline-flex", alignItems:"center", gap:8, background:"rgba(29,158,117,0.1)", border:"0.5px solid rgba(29,158,117,0.3)", borderRadius:999, padding:"5px 14px", marginBottom:32 }}>
             <span style={{ width:6, height:6, background:"#5DCAA5", borderRadius:"50%", display:"inline-block" }} />
-            <span style={{ fontFamily:"'DM Mono',monospace", fontSize:11, color:"#9FE1CB" }}>Solana Frontline Hackathon 2025</span>
+            <span style={{ fontFamily:"'DM Mono',monospace", fontSize:11, color:"#9FE1CB" }}>Solana-Powered Healthcare System</span>
           </div>
           <h1 style={{ fontFamily:"'Playfair Display',serif", fontSize:"clamp(48px,7vw,88px)", fontWeight:900, lineHeight:1.0, marginBottom:28, maxWidth:780 }}>
             Healthcare where<br /><span style={{ color:"#1D9E75", fontStyle:"italic" }}>outcomes</span> pay,<br />not procedures.
@@ -216,7 +216,7 @@ export default function LandingPage() {
 
       {/* Footer */}
       <footer style={{ borderTop:"0.5px solid rgba(29,158,117,0.1)", padding:"32px 48px", display:"flex", justifyContent:"space-between", alignItems:"center" }}>
-        <span style={{ fontFamily:"'DM Mono',monospace", fontSize:12, color:"#2d4a38" }}>$HEALTH — Solana Frontline Hackathon</span>
+        <span style={{ fontFamily:"'DM Mono',monospace", fontSize:12, color:"#2d4a38" }}>$HEALTH — Solana-Powered Healthcare System</span>
         <span style={{ fontFamily:"'DM Mono',monospace", fontSize:12, color:"#2d4a38" }}>Built on Solana ◆ Powered by Anchor</span>
       </footer>
     </div>
