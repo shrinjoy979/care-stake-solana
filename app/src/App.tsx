@@ -5,7 +5,7 @@ import LandingPage from "./components/LandingPage";
 import Dashboard from "./components/Dashboard";
 import "./App.css";
 
-type View = "landing" | "register" | "dashboard";
+type View = "landing" | "register" | "dashboard" | "loading";
 
 export default function App() {
   const { connected } = useWallet();
@@ -13,14 +13,14 @@ export default function App() {
   const [name, setName] = useState("");
   const [registering, setRegistering] = useState(false);
 
-  // ── Routing logic ────────────────────────────────────────────────────────
   const view: View = !connected
     ? "landing"
-    : !isRegistered
-    ? "register"
-    : "dashboard";
+    : loading && isRegistered === null
+    ? "loading"
+    : isRegistered
+    ? "dashboard"
+    : "register";
 
-  // ── Registration handler ─────────────────────────────────────────────────
   async function handleRegister() {
     if (!name.trim()) return;
     setRegistering(true);
@@ -33,8 +33,25 @@ export default function App() {
     }
   }
 
-  // ── Views ────────────────────────────────────────────────────────────────
   if (view === "landing") return <LandingPage />;
+
+  if (view === "loading") {
+    return (
+      <div style={{
+        display: "flex", alignItems: "center", justifyContent: "center",
+        height: "100vh", background: "#0a0f0d",
+      }}>
+        <div style={{
+          width: 32, height: 32,
+          border: "2px solid rgba(29,158,117,0.2)",
+          borderTop: "2px solid #1D9E75",
+          borderRadius: "50%",
+          animation: "spin 0.8s linear infinite",
+        }} />
+        <style>{`@keyframes spin { to { transform: rotate(360deg); } }`}</style>
+      </div>
+    );
+  }
 
   if (view === "register") {
     return (
