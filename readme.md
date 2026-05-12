@@ -52,7 +52,7 @@ CareStake introduces transparent, outcome-driven healthcare incentives using blo
 ## Local Setup
 
 ```bash
-git clone <repo-url>
+git clone https://github.com/shrinjoy979/care-stake-solana.git
 cd carestake
 npm install
 npm run dev
